@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Ledger</title>
+<!-- App Icon -->
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0b0d10">
+
+
+<style>
+:root{
+  --bg:#0b0d10;
+  --card:rgba(255,255,255,.07);
+  --stroke:rgba(255,255,255,.14);
+  --text:#f1f5f9;
+  --muted:#9ca3af;
+  --accent:#b5ff9c;
+  --danger:#ff6b6b;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{
+  box-sizing:border-box;
+  font-family:Inter,system-ui,-apple-system;
+}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(900px 500px at 50% -200px,#1a2140 0%,transparent 60%),
+    var(--bg);
+  color:var(--text);
+}
+
+.app{
+  max-width:420px;
+  margin:auto;
+  min-height:100vh;
+  animation:fadeIn .6s ease;
+}
+
+.hidden{display:none}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 18px 10px;
+}
+
+.card{
+  margin:14px;
+  padding:18px;
+  border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.03));
+  border:1px solid var(--stroke);
+  backdrop-filter:blur(16px);
+  box-shadow:0 22px 50px rgba(0,0,0,.45);
+  transition:.35s var(--ease);
+}
+
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 28px 70px rgba(0,0,0,.55);
+}
+
+input,select{
+  width:100%;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid var(--stroke);
+  background:#111;
+  color:white;
+  font-size:15px;
+  margin-top:12px;
+  transition:.25s ease;
+}
+
+input:focus,select:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(181,255,156,.18);
+}
+
+button{
+  width:100%;
+  margin-top:16px;
+  padding:14px;
+  border-radius:20px;
+  border:none;
+  background:linear-gradient(135deg,#b5ff9c,#9aff77);
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+  transition:.2s ease;
+}
+
+button:active{transform:scale(.96)}
+
+.nav-btn{
+  background:rgba(255,255,255,.08);
+  border:1px solid var(--stroke);
+  color:white;
+}
+
+.error{
+  border-color:var(--danger)!important;
+  box-shadow:0 0 0 4px rgba(255,107,107,.25)!important;
+}
+
+table{width:100%;font-size:13px}
+th,td{padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.1)}
+.amount{text-align:right}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+
+.fade-up{animation:fadeUp .4s ease}
+
+/* ===== WISE STYLE CUSTOMER SELECT (PAGE 1 ONLY) ===== */
+.customer-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:14px;
+}
+
+.customer-card{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 16px;
+  border-radius:16px;
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--stroke);
+  cursor:pointer;
+  transition:.3s var(--ease);
+}
+
+.customer-card:hover{
+  transform:translateY(-2px);
+  background:rgba(255,255,255,.1);
+}
+
+.customer-card.active{
+  border:2px dashed var(--accent);
+  background:rgba(181,255,156,.1);
+}
+
+.customer-name{
+  font-weight:600;
+  font-size:15px;
+}
+
+.customer-sub{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.customer-amount{
+  font-weight:700;
+  color:var(--accent);
+  font-size:14px;
+}
+/* ================= PDF (A4) ONLY ================= */
+@media print {
+  body{
+    background:white;
+    color:black;
+  }
+
+  .app,
+  .header,
+  button,
+  .nav-btn{
+    display:none !important;
+  }
+
+  #pdfPage{
+    display:block !important;
+  }
+}
+
+/* Hidden by default */
+#pdfPage{
+  display:none;
+  padding:20mm;
+  font-family:Arial, sans-serif;
+}
+
+.pdf-title{
+  font-size:24px;
+  font-weight:700;
+  margin-bottom:16px;
+}
+
+.pdf-cards{
+  display:flex;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.pdf-card{
+  flex:1;
+  border:1px solid #000;
+  border-radius:12px;
+  padding:14px;
+}
+
+.pdf-section{
+  border:1px solid #000;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:18px;
+}
+
+.pdf-section h3{
+  margin:0 0 10px 0;
+}
+
+.pdf-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+
+.pdf-table th,
+.pdf-table td{
+  border-bottom:1px solid #000;
+  padding:6px;
+}
+
+.pdf-right{
+  text-align:right;
+}
+/* ===============================
+   BACK & HOME BUTTONS ONLY
+   (inside header)
+================================ */
+.header .nav-btn{
+  width:auto;
+  padding:7px 18px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.22);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.05) 100%
+    );
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  color:#ffffff;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.35),
+    inset 0 -1px 1px rgba(0,0,0,.4),
+    0 10px 28px rgba(0,0,0,.7);
+
+  transition:
+    transform .18s ease,
+    box-shadow .25s ease,
+    background .25s ease;
+}
+
+/* Hover */
+.header .nav-btn:hover{
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.45),
+    inset 0 -1px 1px rgba(0,0,0,.45),
+    0 16px 38px rgba(0,0,0,.85);
+}
+
+/* Active */
+.header .nav-btn:active{
+  transform: scale(.95);
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,.65),
+    0 6px 16px rgba(0,0,0,.6);
+}
+
+
+</style>
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Unicode font for ₹ -->
+<script>
+/* NotoSans-Regular.ttf (base64) */
+var NotoSans = `
+AAEAAAATAQAABAAwRFNJRwAAAAEAAfYAAA...
+...TRUNCATED_FOR_READABILITY...
+`;
+</script>
+
+<body>
+<div class="app">
+
+<!-- ================= PAGE 1 : CUSTOMER ================= -->
+<section id="p1">
+
+  <div class="header">
+    <b>Select Customer</b>  
+  </div>
+
+  <div class="card fade-up">
+    <input id="custSearch" placeholder="Search customer…">
+
+    <div id="custList" class="customer-list"></div>
+
+
+    <button onclick="goDashboard()">Continue</button>
+    <button class="nav-btn" onclick="openAddCustomer()">+ Add New Customer</button>
+  </div>
+
+</section>
+
+<!-- ================= PAGE 2 : DASHBOARD ================= -->
+<section id="p2" class="hidden">
+
+  <div class="header">
+    <b id="custName">Customer</b>
+    <button class="nav-btn" onclick="back()">Back</button>
+  </div>
+
+  <div class="card">
+    <small>Amount Receivable</small>
+    <div id="due" style="font-size:28px;font-weight:700">₹0</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card"><small>Latest Payment</small><div id="latestPay">—</div></div>
+    <div class="card"><small>Latest Supply</small><div id="latestSup">—</div></div>
+  </div>
+
+  <div class="card">
+    <b>Add Payment</b>
+    <input type="date" id="p_date">
+    <input id="p_bill" placeholder="Bill No">
+    <select id="p_type">
+      <option value="">Payment Type</option>
+      <option>Cash</option>
+      <option>UPI</option>
+      <option>Bank</option>
+      <option>Cheque</option>
+    </select>
+    <input type="number" id="p_amt" placeholder="Amount">
+    <button onclick="addPayment()">Save Payment</button>
+  </div>
+
+  <div class="card">
+    <b>Add Supply</b>
+    <input type="date" id="s_date">
+    <input id="s_bill" placeholder="Bill No">
+    <input type="number" id="s_amt" placeholder="Amount">
+    <button onclick="addSupply()">Save Supply</button>
+  </div>
+
+  <div class="card">
+    <button onclick="openLedger()">View Ledger</button>
+  </div>
+
+</section>
+
+<!-- ================= PAGE 3 : LEDGER ================= -->
+<section id="p3" class="hidden">
+
+  <div class="header">
+    <b>Ledger</b>
+    <button class="nav-btn" onclick="backDash()">Home</button>
+  </div>
+  <div class="card">
+  <button onclick="exportPDF()">Export PDF</button>
+</div>
+
+
+  <!-- MOBILE VIEW -->
+  <div class="card"><b>Payments</b><table id="payT"></table></div>
+  <div class="card"><b>Supplies</b><table id="supT"></table></div>
+
+</section>
+
+<!-- ================= PDF PAGE (A4 ONLY) ================= -->
+<div id="pdfPage">
+
+  <div class="pdf-title" id="pdfCustName">Customer Name</div>
+
+  <div class="pdf-cards">
+    <div class="pdf-card">
+      <small>Total Payment</small>
+      <h2 id="pdfTotalPay">₹0</h2>
+    </div>
+    <div class="pdf-card">
+      <small>Total Supply</small>
+      <h2 id="pdfTotalSup">₹0</h2>
+    </div>
+  </div>
+
+  <div class="pdf-section">
+    <h3>Payments</h3>
+    <table class="pdf-table" id="pdfPayT"></table>
+  </div>
+
+  <div class="pdf-section">
+    <h3>Supplies</h3>
+    <table class="pdf-table" id="pdfSupT"></table>
+  </div>
+
+</div>
+
+
+<!-- ================= ADD CUSTOMER POPUP ================= -->
+<div id="addCustomerPopup" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:999;">
+  <div class="card" style="width:90%;max-width:360px">
+    <b>Add Customer</b>
+    <input id="newCustName" placeholder="Customer Name">
+    <input id="newCustPhone" placeholder="Phone (optional)">
+    <button onclick="saveCustomer()">Save</button>
+    <button class="nav-btn" onclick="closeAddCustomer()">Cancel</button>
+  </div>
+</div>
+
+<!-- ================= ERROR POPUP ================= -->
+<div id="popup" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:999;">
+  <div class="card">
+    <b>⚠️ Incomplete Entry</b>
+    <p style="opacity:.7">Please fill all fields</p>
+    <button onclick="popup.style.display='none'">OK</button>
+  </div>
+</div>
+
+<script>
+const API="https://script.google.com/macros/s/AKfycbx8ETflsKZN90VsXhyYHS-3YYlHYzswcJ2EH6wYEeaNBydGPTT9rsoB9haxYrnSxcjK/exec";
+
+let cid=null;
+let customers=[];
+let selectedCustomerName="";
+
+/* ================= UTIL ================= */
+function formatDate(d){
+  return new Date(d)
+    .toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+    .replace(/ /g,"-");
+}
+
+function formatMoney(n){
+  if(n === null || n === undefined || n === "") return "0";
+  return Number(n).toLocaleString("en-IN");
+}
+
+/* ================= LOAD CUSTOMERS ================= */
+fetch(`${API}?action=getCustomers`)
+.then(r=>r.json())
+.then(d=>{
+  customers=d;
+  renderCustomers(d);
+  updateCustomerAmounts(); // 👈 ADD THIS LINE HERE
+});
+
+
+function renderCustomers(list){
+  custList.innerHTML="";
+  list.forEach(c=>{
+    const card=document.createElement("div");
+    card.className="customer-card";
+    card.innerHTML=`
+      <div>
+        <div class="customer-name">${c.name}</div>
+        <div class="customer-sub">Customer Account</div>
+      </div>
+      <div class="customer-amount">₹—</div>
+    `;
+    card.onclick=()=>{
+      document.querySelectorAll(".customer-card").forEach(el=>el.classList.remove("active"));
+      card.classList.add("active");
+      cid=c.id;
+      selectedCustomerName=c.name;
+    };
+    custList.appendChild(card);
+  });
+}
+
+/* Search */
+custSearch.oninput=()=>{
+  const q=custSearch.value.toLowerCase();
+  renderCustomers(customers.filter(c=>c.name.toLowerCase().includes(q)));
+};
+
+/* ================= NAV ================= */
+function goDashboard(){
+  if(!cid){ popup.style.display="flex"; return; }
+  custName.innerText=selectedCustomerName;
+  p1.classList.add("hidden");
+  p2.classList.remove("hidden");
+  loadDashboard();
+}
+
+function back(){ p2.classList.add("hidden"); p1.classList.remove("hidden"); }
+function openLedger(){ p2.classList.add("hidden"); p3.classList.remove("hidden"); loadLedger(); }
+function backDash(){ p3.classList.add("hidden"); p2.classList.remove("hidden"); }
+
+/* ================= ADD CUSTOMER ================= */
+function openAddCustomer(){ addCustomerPopup.style.display="flex"; }
+function closeAddCustomer(){ addCustomerPopup.style.display="none"; }
+
+function saveCustomer(){
+  if(!newCustName.value){
+    newCustName.classList.add("error");
+    return;
+  }
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"addCustomer",
+      name:newCustName.value,
+      phone:newCustPhone.value
+    })
+  }).then(()=>{
+    newCustName.value=newCustPhone.value="";
+    closeAddCustomer();
+    location.reload();
+  });
+}
+
+/* ================= DASHBOARD ================= */
+function loadDashboard(){
+fetch(`${API}?action=getLedger&customerId=${cid}`)
+.then(r=>r.json())
+.then(d=>{
+  let payments=[...d.payments].sort((a,b)=>new Date(b[0])-new Date(a[0]));
+  let supplies=[...d.supplies].sort((a,b)=>new Date(b[0])-new Date(a[0]));
+
+  let paid=0, sup=0;
+
+  payments.forEach(r=> paid += Number(r[3]));
+  supplies.forEach(r=> sup += Number(r[3]));
+
+  latestPay.innerText = payments.length
+    ? `${formatDate(payments[0][0])} • ₹${formatMoney(payments[0][3])}`
+    : "—";
+
+  latestSup.innerText = supplies.length
+    ? `${formatDate(supplies[0][0])} • ₹${formatMoney(supplies[0][3])}`
+    : "—";
+
+  due.innerText = "₹" + formatMoney(sup - paid);
+});
+}
+
+/* ================= LEDGER ================= */
+function loadLedger(){
+fetch(`${API}?action=getLedger&customerId=${cid}`)
+.then(r=>r.json())
+.then(d=>{
+  let paid=0, sup=0;
+
+  payT.innerHTML =
+    "<tr><th>Date</th><th>Bill</th><th>Type</th><th class='amount'>₹</th></tr>";
+  supT.innerHTML =
+    "<tr><th>Date</th><th>Bill</th><th class='amount'>₹</th></tr>";
+
+  d.payments.forEach(r=>{
+    paid += Number(r[3]);
+    payT.innerHTML += `
+      <tr>
+        <td>${formatDate(r[0])}</td>
+        <td>${r[2]}</td>
+        <td>${r[4]}</td>
+        <td class="amount">${formatMoney(r[3])}</td>
+      </tr>`;
+  });
+
+  d.supplies.forEach(r=>{
+    sup += Number(r[3]);
+    supT.innerHTML += `
+      <tr>
+        <td>${formatDate(r[0])}</td>
+        <td>${r[2]}</td>
+        <td class="amount">${formatMoney(r[3])}</td>
+      </tr>`;
+  });
+
+  due.innerText = "₹" + formatMoney(sup - paid);
+});
+}
+
+/* ================= SAVE ================= */
+function addPayment(){
+  if(!p_date.value||!p_bill.value||!p_type.value||!p_amt.value){
+    popup.style.display="flex"; return;
+  }
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"addPayment",
+      date:p_date.value,
+      customerId:cid,
+      bill:p_bill.value,
+      amount:p_amt.value,
+      type:p_type.value
+    })
+  }).then(()=>{
+    p_date.value=p_bill.value=p_amt.value=p_type.value="";
+    loadDashboard();
+  });
+}
+
+function addSupply(){
+  if(!s_date.value||!s_bill.value||!s_amt.value){
+    popup.style.display="flex"; return;
+  }
+  fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"addSupply",
+      date:s_date.value,
+      customerId:cid,
+      bill:s_bill.value,
+      amount:s_amt.value
+    })
+  }).then(()=>{
+    s_date.value=s_bill.value=s_amt.value="";
+    loadDashboard();
+  });
+}
+
+/* ================= PDF ================= */
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF("p", "mm", "a4");
+
+// Register Unicode font
+pdf.addFileToVFS("NotoSans.ttf", NotoSans);
+pdf.addFont("NotoSans.ttf", "NotoSans", "normal");
+pdf.setFont("NotoSans");
+
+function nextPageIfNeeded(pdf, y){
+  if(y > 270){            // A4 safe bottom
+    pdf.addPage();
+    return 20;            // top margin for new page
+  }
+  return y;
+}
+
+
+async function exportPDF(){
+  if(!cid){
+    popup.style.display="flex";
+    return;
+  }
+
+  const res = await fetch(`${API}?action=getLedger&customerId=${cid}`);
+  const data = await res.json();
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  let y = 20;
+
+  /* ========= CALCULATIONS ========= */
+  let totalSup = 0, totalPay = 0;
+  data.supplies.forEach(r => totalSup += Number(r[3]));
+  data.payments.forEach(r => totalPay += Number(r[3]));
+  const balance = totalSup - totalPay;
+
+  /* ========= HEADER ========= */
+pdf.setFont("helvetica","bold");
+pdf.setFontSize(18);
+pdf.text("SA ENTERPRISE", 14, y);
+
+y += 8;
+pdf.setFontSize(14);
+pdf.setFont("helvetica","normal");
+pdf.text("Ledger Report", 14, y);
+
+y += 10;
+pdf.setFontSize(11);
+pdf.setFont("helvetica","normal");
+
+pdf.text(`Customer ID : ${cid}`, 14, y);
+pdf.text(`Total Supplies : RS ${formatMoney(totalSup)}`, pageW-14, y, {align:"right"});
+
+y += 6;
+pdf.text(`Customer : ${selectedCustomerName}`, 14, y);
+pdf.text(`Total Payment : RS ${formatMoney(totalPay)}`, pageW-14, y, {align:"right"});
+
+y += 6;
+pdf.text(`Date : ${formatDate(new Date())}`, 14, y);
+pdf.text(`Amount Receivable : RS ${formatMoney(balance)}`, pageW-14, y, {align:"right"});
+
+y += 14;
+
+
+  /* ========= SUPPLIES ========= */
+  pdf.setFont("helvetica","bold");
+  pdf.setFontSize(14);
+  pdf.text("Supplies", 14, y);
+  y += 6;
+
+  // Header box
+  pdf.rect(14, y, pageW-28, 12);
+  pdf.setFontSize(11);
+  pdf.text("Date", 18, y+8);
+  pdf.text("Bill No", 90, y+8);
+  pdf.text("Amount", pageW-20, y+8, {align:"right"});
+
+  y += 18;
+  pdf.setFont("helvetica","normal");
+
+  if(data.supplies.length === 0){
+    pdf.text("No supply records", 18, y);
+    y += 8;
+  } else {
+    data.supplies.forEach(r=>{
+  y = nextPageIfNeeded(pdf, y);
+
+  pdf.text(formatDate(r[0]), 18, y);
+  pdf.text(String(r[2]), 90, y);
+  pdf.text("RS "+formatMoney(r[3]), pageW-20, y, {align:"right"});
+
+  y += 8;
+});
+
+  }
+
+  y += 14;
+
+  /* ========= PAYMENTS ========= */
+  pdf.setFont("helvetica","bold");
+  pdf.setFontSize(14);
+  pdf.text("Payments", 14, y);
+  y += 6;
+
+  // Header box
+  pdf.rect(14, y, pageW-28, 12);
+  pdf.setFontSize(11);
+  pdf.text("Date", 18, y+8);
+  pdf.text("Bill No", 70, y+8);
+  pdf.text("Mode of Payment", 120, y+8);
+  pdf.text("Amount", pageW-20, y+8, {align:"right"});
+
+  y += 18;
+  pdf.setFont("helvetica","normal");
+
+  if(data.payments.length === 0){
+    pdf.text("No payment records", 18, y);
+    y += 8;
+  } else {
+data.payments.forEach(r=>{
+  y = nextPageIfNeeded(pdf, y);
+
+  pdf.text(formatDate(r[0]), 18, y);
+  pdf.text(String(r[2]), 70, y);
+  pdf.text(String(r[4]), 120, y);
+  pdf.text("RS "+formatMoney(r[3]), pageW-20, y, {align:"right"});
+
+  y += 8;
+});
+
+  }
+
+  /* ========= SAVE ========= */
+  pdf.save(`Ledger_${selectedCustomerName}.pdf`);
+}
+
+
+
+
+
+async function updateCustomerAmounts(){
+  const cards = document.querySelectorAll(".customer-card");
+
+  for(let i = 0; i < customers.length; i++){
+    const c = customers[i];
+    const card = cards[i];
+    const amountEl = card.querySelector(".customer-amount");
+
+    try{
+      const res = await fetch(`${API}?action=getLedger&customerId=${c.id}`);
+      const d = await res.json();
+
+      let paid = 0, sup = 0;
+
+      d.payments.forEach(r => paid += Number(r[3]));
+      d.supplies.forEach(r => sup += Number(r[3]));
+
+      const balance = sup - paid;
+
+      amountEl.innerText = "₹" + formatMoney(balance);
+      amountEl.style.color =
+        balance >= 0 ? "var(--accent)" : "var(--danger)";
+    }catch(e){
+      amountEl.innerText = "₹—";
+    }
+  }
+}
+
+</script>
+
+</body>
+</html>
